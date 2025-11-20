@@ -1,8 +1,10 @@
-Flask
+flask
 pandas
-numpy
+shapely
 mysql-connector-python
 gspread
 gspread-dataframe
 google-auth
-shapely
+google-auth-oauthlib
+python-dotenv
+gunicorn
