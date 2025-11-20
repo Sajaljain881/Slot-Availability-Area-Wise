@@ -1,12 +1,25 @@
+import os
 import json
-import mysql.connector
-from shapely.geometry import Point, Polygon
+import base64
+import logging
+from flask import Flask
 import pandas as pd
+from shapely.geometry import Point, Polygon
+import mysql.connector
 import gspread
 from gspread_dataframe import set_with_dataframe
 from google.oauth2.service_account import Credentials
-from flask import Flask
-import logging
+from dotenv import load_dotenv
+
+# ---------------- Load Environment Variables ----------------
+load_dotenv()
+
+DB_HOST = os.environ.get("DB_HOST")
+DB_USER = os.environ.get("DB_USER")
+DB_PASSWORD = os.environ.get("DB_PASSWORD")
+DB_NAME = os.environ.get("DB_NAME")
+GOOGLE_CREDS_BASE64 = os.environ.get("GOOGLE_CREDS_BASE64")
+GOOGLE_SHEET_KEY = os.environ.get("GOOGLE_SHEET_KEY")
 
 # ---------------- Logging Setup ----------------
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
@@ -25,6 +38,27 @@ def get_zone(lat, lng, zones):
                 return z["area"]
     return None
 
+# ---------------- Load Zones from Database ----------------
+def load_zones(cursor):
+    cursor.execute(
+        "SELECT id, area, polygon FROM plb_city_area_polygons "
+        "WHERE id NOT IN (3,10,17,18,9,19,20)"
+    )
+    zones_raw = cursor.fetchall()
+    zones = []
+    for z in zones_raw:
+        try:
+            pts = json.loads(z["polygon"])
+            coords = [(float(p["lng"]), float(p["lat"])) for p in pts if p.get("lat") and p.get("lng")]
+            poly = Polygon(coords)
+            if not poly.is_valid:
+                poly = poly.buffer(0)
+            zones.append({"area": z["area"], "polygon": poly})
+        except Exception as e:
+            logger.error(f"Polygon load error for zone {z.get('id', 'unknown')} → {e}")
+    logger.info(f"Loaded {len(zones)} zones from DB.")
+    return zones
+
 # ---------------- Route ----------------
 @app.route("/update-sheet", methods=["GET", "POST"])
 def update_sheet():
@@ -32,42 +66,29 @@ def update_sheet():
         logger.info("Starting sheet update...")
 
         # ---------------- Google Sheet Auth ----------------
-        creds = Credentials.from_service_account_file(
-            "looker-neutron-537ff8227c43.json",
+        creds_json = base64.b64decode(GOOGLE_CREDS_BASE64)
+        creds_info = json.loads(creds_json)
+        creds = Credentials.from_service_account_info(
+            creds_info,
             scopes=[
                 "https://www.googleapis.com/auth/spreadsheets",
                 "https://www.googleapis.com/auth/drive"
             ]
         )
         client = gspread.authorize(creds)
-        sheet = client.open_by_key(
-            "1Rcrs_ZfCSZqhf5jC6vAS_hIt5jnhapeYigxC3VoT07U"
-        ).worksheet("Sheet2")
+        sheet = client.open_by_key(GOOGLE_SHEET_KEY).worksheet("Dump Data")
 
         # ---------------- Connect to MySQL ----------------
         db = mysql.connector.connect(
-            host="phleboindia-live-replica.crxgetalloxh.ap-south-1.rds.amazonaws.com",
-            user="usr_phleboindia",
-            password="p68tA7WBf=FC9dF0]O0M",
-            database="db_phlebo_india"
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME
         )
         cursor = db.cursor(dictionary=True)
 
         # ---------------- Load Zones ----------------
-        cursor.execute("SELECT id, area, polygon FROM plb_city_area_polygons where id not in (3,10,17,18,9,19,20) ")
-        zones_raw = cursor.fetchall()
-        zones = []
-        for z in zones_raw:
-            try:
-                pts = json.loads(z["polygon"])
-                coords = [(float(p["lng"]), float(p["lat"])) for p in pts if p.get("lat") and p.get("lng")]
-                poly = Polygon(coords)
-                if not poly.is_valid:
-                    poly = poly.buffer(0)
-                zones.append({"area": z["area"], "polygon": poly})
-            except Exception as e:
-                logger.error(f"Polygon load error for zone {z['id']} → {e}")
-        logger.info(f"Loaded {len(zones)} zones.")
+        zones = load_zones(cursor)
 
         # ---------------- Execute SQL ----------------
         # Note: Adjust the joins/fields if needed, simplified for readability
@@ -251,6 +272,7 @@ def update_sheet():
         df = pd.DataFrame(rows)
 
         if not df.empty:
+            # ---------------- Compute Zones ----------------
             df["zone"] = df.apply(lambda r: get_zone(r.get("latitude"), r.get("longitude"), zones), axis=1)
             df = df.fillna("").astype(str)
             sheet.clear()
@@ -267,4 +289,5 @@ def update_sheet():
 
 # ---------------- Run Flask ----------------
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)

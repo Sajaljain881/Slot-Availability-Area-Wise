@@ -1,29 +1,32 @@
-# Python bytecode files
+# Python
+__pycache__/
 *.pyc
 *.pyo
-__pycache__/
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+dist/
+build/
 
-# Virtual environment directories
-venv/
-.env/
-
-# .env files for environment variables
+# Environment variables
 .env
 
-# Credentials files (never push your secrets to GitHub)
-creds_base64.txt
-*.json
-google_creds.json  # Example file, update with your actual creds filename
-
-# IDE settings (e.g., VSCode)
+# VS Code
 .vscode/
 
-# Operating system files
-.DS_Store   # macOS
-Thumbs.db   # Windows
+# Jupyter
+.ipynb_checkpoints/
 
 # Logs
 *.log
 
-# Other system-specific files
-*.swp  # Vim temporary files
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database files
+*.sqlite3
+
+# Ignore any credentials
+*.json
