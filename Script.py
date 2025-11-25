@@ -161,7 +161,9 @@ def update_sheet():
         (plb_history_bookings.total_actual_amount-plb_history_bookings.discount_amount) as lab_mrp,
           plb_history_bookings.promocode_discount_amount,
           plb_history_bookings.redeem_coin,
-          plb_history_bookings.total_paid_amount                     
+          plb_history_bookings.total_paid_amount,
+          plb_history_bookings.total_admin_commission,
+          plb_history_bookings.total_lab_earning                     
           FROM plb_history_bookings
         LEFT Join plb_history_booking_tests on plb_history_bookings.id = plb_history_booking_tests.booking_id
         LEFT JOIN plb_promocodes ON plb_history_bookings.promocode = plb_promocodes.promocode
@@ -248,7 +250,9 @@ def update_sheet():
         (plb_bookings.total_actual_amount-plb_bookings.discount_amount) as lab_mrp,
           plb_bookings.promocode_discount_amount,
           plb_bookings.redeem_coin,
-          plb_bookings.total_paid_amount                 
+          plb_bookings.total_paid_amount,
+          plb_bookings.total_admin_commission,
+          plb_bookings.total_lab_earning                   
           FROM plb_bookings
         LEFT Join plb_booking_tests on plb_bookings.id = plb_booking_tests.booking_id
         LEFT JOIN plb_promocodes ON plb_bookings.promocode = plb_promocodes.promocode
