@@ -42,7 +42,7 @@ def get_zone(lat, lng, zones):
 def load_zones(cursor):
     cursor.execute(
         "SELECT id, area, polygon FROM plb_city_area_polygons "
-        "WHERE id NOT IN (3,10,17,18,9,19,20)"
+        "WHERE id NOT IN (3,4,5,6,10,17,18,9,19,20)"
     )
     zones_raw = cursor.fetchall()
     zones = []
