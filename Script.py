@@ -269,7 +269,7 @@ def update_sheet():
         LEFT JOIN plb_tests_and_packages_masters on plb_lab_tests.test_and_package_id = plb_tests_and_packages_masters.id
         where  plb_bookings.booking_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 1 DAY)
         group by plb_bookings.id
-        order by booking_date """
+        order by created_at """
 
         cursor.execute(sql)
         rows = cursor.fetchall()
